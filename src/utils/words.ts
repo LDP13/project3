@@ -1,17 +1,14 @@
-const WORD_LIST = [
-  'maison', 'voiture', 'chat', 'chien', 'ordinateur',
-  'table', 'livre', 'école', 'travail', 'famille',
-  'jardin', 'soleil', 'lune', 'étoile', 'musique',
-  'danse', 'peinture', 'cuisine', 'voyage', 'montagne',
-  'rivière', 'forêt', 'plage', 'océan', 'ville',
-  'village', 'route', 'train', 'avion', 'bateau',
-  'fleur', 'arbre', 'oiseau', 'poisson', 'papillon',
-  'téléphone', 'fenêtre', 'porte', 'mur', 'toit'
-];
+import { BASIC_WORD_LIST, ADVANCED_WORD_LIST } from './wordLists';
 
-export const getRandomWords = (count: number): string[] => {
+export type DictionaryType = 'basic' | 'advanced';
+
+export const getWordList = (type: DictionaryType): string[] => {
+  return type === 'basic' ? BASIC_WORD_LIST : ADVANCED_WORD_LIST;
+};
+
+export const getRandomWords = (count: number, dictionaryType: DictionaryType): string[] => {
   const words: string[] = [];
-  const wordsCopy = [...WORD_LIST];
+  const wordsCopy = [...getWordList(dictionaryType)];
 
   for (let i = 0; i < count; i++) {
     if (wordsCopy.length === 0) break;

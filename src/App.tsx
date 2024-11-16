@@ -6,8 +6,12 @@ import { Stats } from './components/Stats';
 import { Leaderboard } from './components/Leaderboard';
 import { UsernameModal } from './components/UsernameModal';
 import { ThemeToggle } from './components/ThemeToggle';
-import { getRandomWords } from './utils/words';
+import { DictionarySelector } from './components/DictionarySelector';
+import { AuthButton } from './components/AuthButton';
+import { getRandomWords, type DictionaryType } from './utils/words';
 import { saveScore, getScores, Score } from './utils/storage';
+import { auth } from './utils/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
 const GAME_DURATION = 60;
 
@@ -25,6 +29,8 @@ function App() {
   const [startTime, setStartTime] = useState<number | null>(null);
   const [showUsernameModal, setShowUsernameModal] = useState(false);
   const [scores, setScores] = useState<Score[]>([]);
+  const [dictionary, setDictionary] = useState<DictionaryType>('basic');
+  const [user, setUser] = useState<any>(null);
   const [isDark, setIsDark] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('theme') === 'dark' || 
@@ -32,6 +38,14 @@ function App() {
     }
     return false;
   });
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (isDark) {
@@ -43,7 +57,7 @@ function App() {
   }, [isDark]);
 
   const initializeGame = useCallback(() => {
-    const initialWords = getRandomWords(20);
+    const initialWords = getRandomWords(20, dictionary);
     setWords(initialWords);
     setTimeLeft(GAME_DURATION);
     setIsActive(false);
@@ -56,11 +70,15 @@ function App() {
     setCompletedWords(new Array(initialWords.length).fill(false));
     setStartTime(null);
     setShowUsernameModal(false);
-  }, []);
+  }, [dictionary]);
 
   useEffect(() => {
     initializeGame();
-    setScores(getScores());
+    const fetchScores = async () => {
+      const fetchedScores = await getScores();
+      setScores(fetchedScores);
+    };
+    fetchScores();
   }, [initializeGame]);
 
   useEffect(() => {
@@ -71,7 +89,11 @@ function App() {
           if (prevTime <= 1) {
             setGameOver(true);
             setIsActive(false);
-            setShowUsernameModal(true);
+            if (user) {
+              handleGameOver();
+            } else {
+              setShowUsernameModal(true);
+            }
             return 0;
           }
           return prevTime - 1;
@@ -81,7 +103,7 @@ function App() {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isActive, gameOver]);
+  }, [isActive, gameOver, user]);
 
   useEffect(() => {
     if (startTime && isActive && !gameOver) {
@@ -119,7 +141,7 @@ function App() {
         setUserInput('');
 
         if (currentWordIndex === words.length - 1) {
-          const newWords = getRandomWords(20);
+          const newWords = getRandomWords(20, dictionary);
           setWords(newWords);
           setCurrentWordIndex(0);
           setCompletedWords(new Array(20).fill(false));
@@ -130,16 +152,38 @@ function App() {
     }
   };
 
-  const handleUsernameSubmit = (username: string) => {
-    const newScore: Score = {
+  const handleGameOver = async () => {
+    const score: Score = {
+      username: user.displayName,
+      wpm: wordsPerMinute,
+      accuracy,
+      timestamp: Date.now(),
+      userId: user.uid,
+      userPhotoURL: user.photoURL
+    };
+    await saveScore(score);
+    const updatedScores = await getScores();
+    setScores(updatedScores);
+  };
+
+  const handleUsernameSubmit = async (username: string) => {
+    const score: Score = {
       username,
       wpm: wordsPerMinute,
       accuracy,
       timestamp: Date.now()
     };
-    saveScore(newScore);
-    setScores(getScores());
+    await saveScore(score);
+    const updatedScores = await getScores();
+    setScores(updatedScores);
     setShowUsernameModal(false);
+  };
+
+  const handleDictionaryChange = (type: DictionaryType) => {
+    setDictionary(type);
+    if (!isActive) {
+      initializeGame();
+    }
   };
 
   const accuracy = totalAttempts > 0 
@@ -149,7 +193,8 @@ function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-100 to-blue-100 dark:from-gray-900 dark:to-gray-800 py-12 px-4 transition-colors duration-200">
       <div className="max-w-5xl mx-auto">
-        <div className="flex justify-end mb-4">
+        <div className="flex justify-between items-center mb-4">
+          <AuthButton user={user} />
           <ThemeToggle isDark={isDark} onToggle={() => setIsDark(!isDark)} />
         </div>
 
@@ -160,6 +205,11 @@ function App() {
           <h1 className="text-4xl font-bold text-gray-800 dark:text-white mb-2">DactyloFast</h1>
           <p className="text-gray-600 dark:text-gray-300">Tapez les mots le plus rapidement possible</p>
         </div>
+
+        <DictionarySelector 
+          currentDictionary={dictionary}
+          onDictionaryChange={handleDictionaryChange}
+        />
 
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-6 transition-colors duration-200">
           <div className="flex justify-between mb-4">
@@ -210,7 +260,7 @@ function App() {
 
         <Leaderboard scores={scores} />
 
-        {showUsernameModal && (
+        {showUsernameModal && !user && (
           <UsernameModal
             onSubmit={handleUsernameSubmit}
             wpm={wordsPerMinute}
