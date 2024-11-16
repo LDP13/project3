@@ -18,7 +18,7 @@ export const WordDisplay: React.FC<WordDisplayProps> = ({
   };
 
   return (
-    <div className="mb-6 p-6 bg-gray-50 rounded-lg">
+    <div className="mb-6 p-6 bg-gray-50 dark:bg-gray-900 rounded-lg">
       <div className="flex flex-wrap gap-2 justify-center">
         {words.map((word, index) => {
           const isCurrentWord = index === currentIndex;
@@ -31,27 +31,27 @@ export const WordDisplay: React.FC<WordDisplayProps> = ({
                 key={index}
                 className={`px-4 py-3 rounded-lg border-3 transition-all transform ${
                   isCorrect 
-                    ? 'bg-indigo-100 border-indigo-500 shadow-md' 
-                    : 'bg-red-200 border-red-500 shadow-lg scale-110'
+                    ? 'bg-blue-100 dark:bg-blue-900/50 border-blue-500 shadow-md' 
+                    : 'bg-red-100 dark:bg-red-900/50 border-red-500 shadow-lg scale-110'
                 }`}
               >
                 {word.split('').map((char, charIndex) => {
                   let styles = 'text-2xl font-mono transition-all';
                   if (charIndex < userInput.length) {
                     if (userInput[charIndex] === char) {
-                      styles += ' text-green-600';
+                      styles += ' text-green-600 dark:text-green-300';
                     } else {
-                      styles += ' text-red-600 font-bold bg-red-100 px-1 rounded transform scale-110';
+                      styles += ' text-red-600 dark:text-red-300 font-bold bg-red-100/50 dark:bg-red-900/50 px-1 rounded transform scale-110';
                     }
                   } else {
-                    styles += ' text-gray-700';
+                    styles += ' text-gray-700 dark:text-gray-300';
                   }
                   return (
                     <span 
                       key={charIndex} 
                       className={`${styles} ${
                         userInput[charIndex] !== char && charIndex < userInput.length 
-                          ? 'underline decoration-red-600 decoration-4'
+                          ? 'underline decoration-red-500 dark:decoration-red-300 decoration-4'
                           : ''
                       }`}
                     >
@@ -69,9 +69,9 @@ export const WordDisplay: React.FC<WordDisplayProps> = ({
               className={`px-4 py-3 rounded-lg transition-all ${
                 isCompleted
                   ? completedWords[index]
-                    ? 'bg-green-100 text-green-800 shadow-sm'
-                    : 'bg-red-100 text-red-800 shadow-sm'
-                  : 'bg-gray-100 text-gray-600'
+                    ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 shadow-sm'
+                    : 'bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 shadow-sm'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
               }`}
             >
               <span className="text-xl font-mono">{word}</span>
@@ -81,4 +81,4 @@ export const WordDisplay: React.FC<WordDisplayProps> = ({
       </div>
     </div>
   );
-}
+};
