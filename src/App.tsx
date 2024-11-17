@@ -9,7 +9,7 @@ import { ThemeToggle } from './components/ThemeToggle';
 import { DictionarySelector } from './components/DictionarySelector';
 import { AuthButton } from './components/AuthButton';
 import { getRandomWords, type DictionaryType } from './utils/words';
-import { saveScore, getScores, Score } from './utils/storage';
+import { saveScore, getScores, Score, saveDictionary, getDictionaries, deleteDictionary, type CustomDictionary } from './utils/storage';
 import { auth } from './utils/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
@@ -30,6 +30,7 @@ function App() {
   const [showUsernameModal, setShowUsernameModal] = useState(false);
   const [scores, setScores] = useState<Score[]>([]);
   const [dictionary, setDictionary] = useState<DictionaryType>('basic');
+  const [customDictionaries, setCustomDictionaries] = useState<CustomDictionary[]>([]);
   const [user, setUser] = useState<any>(null);
   const [isDark, setIsDark] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -56,8 +57,17 @@ function App() {
     localStorage.setItem('theme', isDark ? 'dark' : 'light');
   }, [isDark]);
 
+  const loadDictionaries = useCallback(async () => {
+    const dicts = await getDictionaries(user?.uid);
+    setCustomDictionaries(dicts);
+  }, [user?.uid]);
+
+  useEffect(() => {
+    loadDictionaries();
+  }, [loadDictionaries]);
+
   const initializeGame = useCallback(() => {
-    const initialWords = getRandomWords(20, dictionary);
+    const initialWords = getRandomWords(20, dictionary, customDictionaries);
     setWords(initialWords);
     setTimeLeft(GAME_DURATION);
     setIsActive(false);
@@ -70,7 +80,7 @@ function App() {
     setCompletedWords(new Array(initialWords.length).fill(false));
     setStartTime(null);
     setShowUsernameModal(false);
-  }, [dictionary]);
+  }, [dictionary, customDictionaries]);
 
   useEffect(() => {
     initializeGame();
@@ -141,7 +151,7 @@ function App() {
         setUserInput('');
 
         if (currentWordIndex === words.length - 1) {
-          const newWords = getRandomWords(20, dictionary);
+          const newWords = getRandomWords(20, dictionary, customDictionaries);
           setWords(newWords);
           setCurrentWordIndex(0);
           setCompletedWords(new Array(20).fill(false));
@@ -179,6 +189,29 @@ function App() {
     setShowUsernameModal(false);
   };
 
+  const handleCreateDictionary = async (name: string, words: string[], isPublic: boolean) => {
+    if (!user) return;
+
+    const dictionary: Omit<CustomDictionary, 'id'> = {
+      name,
+      words,
+      userId: user.uid,
+      isPublic,
+      createdAt: Date.now()
+    };
+
+    await saveDictionary(dictionary);
+    await loadDictionaries();
+  };
+
+  const handleDeleteDictionary = async (id: string) => {
+    await deleteDictionary(id);
+    await loadDictionaries();
+    if (dictionary === id) {
+      setDictionary('basic');
+    }
+  };
+
   const handleDictionaryChange = (type: DictionaryType) => {
     setDictionary(type);
     if (!isActive) {
@@ -209,6 +242,10 @@ function App() {
         <DictionarySelector 
           currentDictionary={dictionary}
           onDictionaryChange={handleDictionaryChange}
+          customDictionaries={customDictionaries}
+          onCreateDictionary={user ? handleCreateDictionary : undefined}
+          onDeleteDictionary={user ? handleDeleteDictionary : undefined}
+          user={user}
         />
 
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-6 transition-colors duration-200">
@@ -242,7 +279,7 @@ function App() {
                 value={userInput}
                 onChange={handleInput}
                 onKeyDown={handleKeyDown}
-                className="w-full p-4 border-2 border-blue-200 dark:border-blue-700 rounded-lg focus:border-blue-600 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-600 dark:focus:ring-blue-500 focus:ring-opacity-50 transition-colors font-mono text-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                className="w-full p-4 border-2 border-blue-200 dark:border-blue-700 rounded-lg focus:border-blue-600 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-600 dark:focus:ring-blue-500 focus:ring-opacity-50 transition-colors font-mono text-lg bg-white dark:bg-gray-700  text-gray-900 dark:text-white"
                 placeholder="Tapez le mot ici..."
                 autoFocus
               />

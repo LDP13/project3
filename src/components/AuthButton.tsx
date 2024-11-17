@@ -9,6 +9,7 @@ interface AuthButtonProps {
 
 export const AuthButton: React.FC<AuthButtonProps> = ({ user }) => {
   const [error, setError] = useState<string | null>(null);
+  const [imageError, setImageError] = useState(false);
 
   const handleSignIn = async () => {
     try {
@@ -16,7 +17,11 @@ export const AuthButton: React.FC<AuthButtonProps> = ({ user }) => {
       await signInWithPopup(auth, googleProvider);
     } catch (error: any) {
       console.error('Erreur de connexion:', error);
-      setError('Erreur de connexion. Veuillez réessayer.');
+      if (error.code === 'auth/popup-blocked') {
+        setError('Veuillez autoriser les popups pour vous connecter avec Google. Vérifiez la barre d\'adresse de votre navigateur.');
+      } else {
+        setError('Une erreur est survenue lors de la connexion. Veuillez réessayer.');
+      }
     }
   };
 
@@ -30,29 +35,45 @@ export const AuthButton: React.FC<AuthButtonProps> = ({ user }) => {
     }
   };
 
+  const handleImageError = () => {
+    setImageError(true);
+  };
+
+  const renderUserAvatar = () => {
+    if (!user?.photoURL || imageError) {
+      return (
+        <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+          <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+        </div>
+      );
+    }
+
+    return (
+      <img
+        src={user.photoURL}
+        alt={user.displayName || 'Avatar utilisateur'}
+        onError={handleImageError}
+        className="w-8 h-8 rounded-full object-cover border-2 border-white dark:border-gray-700 shadow-sm"
+        referrerPolicy="no-referrer"
+      />
+    );
+  };
+
   return (
     <div className="relative">
       {error && (
-        <div className="absolute -bottom-12 left-0 right-0 bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 p-2 rounded-lg text-sm flex items-center gap-2">
-          <AlertCircle className="w-4 h-4" />
-          {error}
+        <div className="absolute -bottom-20 left-0 right-0 bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 p-3 rounded-lg text-sm flex items-center gap-2 shadow-lg z-50 whitespace-normal max-w-sm">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <span>{error}</span>
         </div>
       )}
       
       {user ? (
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            {user.photoURL ? (
-              <img
-                src={user.photoURL}
-                alt={user.displayName}
-                className="w-8 h-8 rounded-full"
-              />
-            ) : (
-              <User className="w-8 h-8 text-gray-600 dark:text-gray-300" />
-            )}
+            {renderUserAvatar()}
             <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
-              {user.displayName}
+              {user.displayName || 'Utilisateur'}
             </span>
           </div>
           <button
